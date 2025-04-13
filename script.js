@@ -97,17 +97,115 @@ window.viewDocument = function(docId) {
 
 function renderDocuments() {
     documentList.innerHTML = documents.map(doc => `
-        <div class="document-card">
-            <h3>${doc.name}</h3>
+        <div class="document-card ${doc.isImportant ? 'important' : ''}">
+            <h3>${doc.name} ${doc.isLocked ? '🔒' : ''} ${doc.isImportant ? '⭐' : ''}</h3>
             <p>Kích thước: ${formatSize(doc.size)}</p>
             <p>Ngày tải lên: ${doc.uploadDate}</p>
             <div class="actions">
-                <button class="btn" onclick="viewDocument(${doc.id})">Xem</button>
-                <button class="btn" onclick="downloadDocument(${doc.id})">Tải xuống</button>
-                <button class="btn" style="background-color: #e74c3c" onclick="deleteDocument(${doc.id})">Xóa</button>
+                <button class="btn" onclick="viewDocument(${doc.id})" ${doc.isLocked ? 'disabled' : ''}>Xem</button>
+                <button class="btn" onclick="downloadDocument(${doc.id})" ${doc.isLocked ? 'disabled' : ''}>Tải xuống</button>
+                <button class="menu-btn" onclick="toggleMenu(${doc.id})">...</button>
+                <div class="menu-options" id="menu-${doc.id}">
+                    <div class="menu-option" onclick="editDocument(${doc.id})">
+                        <i>✏️</i> Sửa
+                    </div>
+                    <div class="menu-option" onclick="shareDocument(${doc.id})">
+                        <i>🔗</i> Chia sẻ
+                    </div>
+                    <div class="menu-option" onclick="lockDocument(${doc.id})">
+                        <i>🔒</i> ${doc.isLocked ? 'Mở khóa' : 'Khóa'}
+                    </div>
+                    <div class="menu-option" onclick="markImportant(${doc.id})">
+                        <i>⭐</i> ${doc.isImportant ? 'Bỏ đánh dấu' : 'Đánh dấu'} quan trọng
+                    </div>
+                    <div class="menu-option" onclick="deleteDocument(${doc.id})">
+                        <i>🗑️</i> Xóa
+                    </div>
+                </div>
             </div>
         </div>
     `).join('');
+}
+
+
+// Xử lý menu tùy chọn
+window.toggleMenu = function(id) {
+    const menu = document.getElementById(`menu-${id}`);
+    // Đóng tất cả các menu khác
+    document.querySelectorAll('.menu-options').forEach(m => {
+        if (m.id !== `menu-${id}`) {
+            m.classList.remove('show');
+        }
+    });
+    menu.classList.toggle('show');
+}
+
+// Đóng menu khi click ra ngoài
+document.addEventListener('click', (e) => {
+    if (!e.target.matches('.menu-btn')) {
+        document.querySelectorAll('.menu-options').forEach(menu => {
+            menu.classList.remove('show');
+        });
+    }
+});
+
+// Các hàm xử lý tùy chọn menu
+window.editDocument = function(id) {
+    const doc = documents.find(d => d.id === id);
+    if (!doc) return;
+    
+    const newName = prompt('Nhập tên mới cho tài liệu:', doc.name);
+    if (newName && newName.trim() !== '') {
+        doc.name = newName.trim();
+        localStorage.setItem('documents', JSON.stringify(documents));
+        renderDocuments();
+    }
+}
+
+window.shareDocument = function(id) {
+    const doc = documents.find(d => d.id === id);
+    if (!doc) return;
+    
+    const shareLink = `${window.location.origin}/share?id=${id}`;
+    navigator.clipboard.writeText(shareLink)
+        .then(() => alert('Đã sao chép liên kết chia sẻ vào clipboard!'))
+        .catch(() => alert('Không thể sao chép liên kết!'));
+}
+
+window.lockDocument = function(id) {
+    const doc = documents.find(d => d.id === id);
+    if (!doc) return;
+    
+    if (doc.isLocked) {
+        const password = prompt('Nhập mật khẩu để mở khóa tài liệu:');
+        if (password === doc.password) {
+            doc.isLocked = false;
+            doc.password = null;
+            alert('Đã mở khóa tài liệu!');
+        } else {
+            alert('Mật khẩu không đúng!');
+            return;
+        }
+    } else {
+        const password = prompt('Nhập mật khẩu để khóa tài liệu:');
+        if (password && password.trim() !== '') {
+            doc.isLocked = true;
+            doc.password = password;
+            alert('Đã khóa tài liệu!');
+        }
+    }
+    
+    localStorage.setItem('documents', JSON.stringify(documents));
+    renderDocuments();
+}
+
+window.markImportant = function(id) {
+    const doc = documents.find(d => d.id === id);
+    if (!doc) return;
+    
+    doc.isImportant = !doc.isImportant;
+    localStorage.setItem('documents', JSON.stringify(documents));
+    renderDocuments();
 }
 
 // Tải xuống tài liệu
